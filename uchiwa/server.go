@@ -8,9 +8,11 @@ import (
 	"strings"
 
 	"github.com/dgrijalva/jwt-go"
-	"github.com/sensu/uchiwa/uchiwa/auth"
-	"github.com/sensu/uchiwa/uchiwa/logger"
-	"github.com/sensu/uchiwa/uchiwa/structs"
+	"github.com/ransoni/uchiwa/uchiwa/auth"
+	"github.com/ransoni/uchiwa/uchiwa/logger"
+	"github.com/ransoni/uchiwa/uchiwa/structs"
+
+    "reflect"
 )
 
 // FilterAggregates is a function that filters aggregates
@@ -116,6 +118,31 @@ func (u *Uchiwa) checksHandler(w http.ResponseWriter, r *http.Request) {
 	token := auth.GetTokenFromContext(r)
 	checks := FilterChecks(&u.Data.Checks, token)
 
+    tok, _ := jwt.ParseFromRequest(r, func(t *jwt.Token) (interface{}, error) {
+        if _, ok := t.Method.(*jwt.SigningMethodRSA); !ok {
+            return nil, fmt.Errorf("Unexpected signing method: %v", t.Header["alg"])
+        }
+
+        return nil, nil
+    })
+
+    tenantDc := tok.Claims["Role"].(map[string]interface{})["Name"]
+
+    fmt.Printf("\nEVENTS: %v", reflect.TypeOf(checks))
+
+    ulos := make([]interface{}, 0)
+    for _, check := range checks {
+        c, ok := check.(map[string]interface{})
+        if !ok {
+            fmt.Printf("Could not assert... %+v\n", c)
+        }
+        for k, v := range c {
+            if k == "dc" && v == tenantDc {
+                ulos = append([]interface{}{}, c)
+            }
+        }
+    }
+
 	// Create header
 	w.Header().Add("Accept-Charset", "utf-8")
 	w.Header().Add("Content-Type", "application/json")
@@ -123,7 +150,7 @@ func (u *Uchiwa) checksHandler(w http.ResponseWriter, r *http.Request) {
 
 	gz := gzip.NewWriter(w)
 	defer gz.Close()
-	if err := json.NewEncoder(gz).Encode(checks); err != nil {
+	if err := json.NewEncoder(gz).Encode(ulos); err != nil {
 		http.Error(w, fmt.Sprintf("Cannot encode response data: %v", err), http.StatusInternalServerError)
 		return
 	}
@@ -139,11 +166,42 @@ func (u *Uchiwa) clientsHandler(w http.ResponseWriter, r *http.Request) {
 
 	token := auth.GetTokenFromContext(r)
 
+    tok, _ := jwt.ParseFromRequest(r, func(t *jwt.Token) (interface{}, error) {
+        if _, ok := t.Method.(*jwt.SigningMethodRSA); !ok {
+            return nil, fmt.Errorf("Unexpected signing method: %v", t.Header["alg"])
+        }
+
+        return nil, nil
+    })
+
+    tenantDc := tok.Claims["Role"].(map[string]interface{})["Name"]
+
+    fmt.Printf("\nURL Path: %v", r.URL.Path)
 	resources := strings.Split(r.URL.Path, "/")
+    for index, resource := range resources {
+        fmt.Printf("\nINDEX: %v, RESOURCE: %v", index, resource)
+    }
+
 
 	// GET on /clients
 	if len(resources) == 2 && r.Method == "GET" {
 		clients := FilterClients(&u.Data.Clients, token)
+
+
+//      Filter clients for Tenant
+        ulos := make([]interface{}, 0)
+        for _, item := range clients {
+            c, ok := item.(map[string]interface{})
+            if !ok {
+                fmt.Printf("Could not assert... %+v\n", c)
+            }
+
+            for k, v := range c {
+                if k == "dc" && v == tenantDc {
+                    ulos = append(ulos, c)
+                }
+            }
+        }
 
 		// Create header
 		w.Header().Add("Accept-Charset", "utf-8")
@@ -152,7 +210,7 @@ func (u *Uchiwa) clientsHandler(w http.ResponseWriter, r *http.Request) {
 
 		gz := gzip.NewWriter(w)
 		defer gz.Close()
-		if err := json.NewEncoder(gz).Encode(clients); err != nil {
+		if err := json.NewEncoder(gz).Encode(ulos); err != nil {
 			http.Error(w, fmt.Sprintf("Cannot encode response data: %v", err), http.StatusInternalServerError)
 			return
 		}
@@ -162,8 +220,10 @@ func (u *Uchiwa) clientsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	client := resources[3]
-	dc := resources[2]
+    client := resources[2]
+    dc := tenantDc.(string)
+//    client := resources[3]
+//    dc := resources[2]
 
 	if client == "" || dc == "" {
 		http.Error(w, "", http.StatusBadRequest)
@@ -192,7 +252,8 @@ func (u *Uchiwa) clientsHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		data, err := u.GetClient(client, dc)
+		fmt.Printf("\nCLIENT: %v, DC: %v\n", client, dc)
+        data, err := u.GetClient(client, dc)
 		if err != nil {
 			http.Error(w, fmt.Sprint(err), http.StatusNotFound)
 			return
@@ -241,6 +302,54 @@ func (u *Uchiwa) datacentersHandler(w http.ResponseWriter, r *http.Request) {
 	token := auth.GetTokenFromContext(r)
 	datacenters := FilterDatacenters(u.Data.Dc, token)
 
+    tok, _ := jwt.ParseFromRequest(r, func(t *jwt.Token) (interface{}, error) {
+        if _, ok := t.Method.(*jwt.SigningMethodRSA); !ok {
+            return nil, fmt.Errorf("Unexpected signing method: %v", t.Header["alg"])
+        }
+
+        return nil, nil
+    })
+
+    tenantDc := tok.Claims["Role"].(map[string]interface{})["Name"]
+//    fmt.Printf("\nTenantDC: %v", tenantDc)
+
+    var outDatacenter []*structs.Datacenter
+//    fmt.Printf("\noutDatacenter: %v", outDatacenter)
+//    fmt.Printf("outDatacenter DATA: %v", outDatacenter)
+
+//    fmt.Printf("\nDATACENTERS: %v", reflect.TypeOf(datacenters))
+//    dcOut := new([]structs.Datacenter)
+//    fmt.Printf("\nOut: %v", reflect.TypeOf(dcOut))
+
+//    outDc := new([]*structs.Datacenter)
+//    fmt.Printf("outDC: %v", reflect.TypeOf(outDc))
+
+
+    for _, dc := range datacenters {
+//        fmt.Printf("\nDatacenter: %v", dc.Name)
+//        itemDc := reflect.ValueOf(dc)
+//        fmt.Printf("\nitemDC: %v", reflect.TypeOf(dc))
+//        fmt.Printf("\nitemDC Value: %v", itemDc)
+
+        if dc.Name == tenantDc {
+            outDatacenter = append(outDatacenter, dc)
+        }
+//        append([]interface{}{}, c)
+
+//        for k, v := range itemDc {
+//            fmt.Printf("\n%v: %v", k, v)
+//        }
+
+    }
+
+    /*fmt.Printf("\nOUTDATACENTER DATA: %v", outDatacenter)
+    for _, dc := range outDatacenter {
+        fmt.Printf("\nDatacenter: %v", dc.Name)
+        itemDc := reflect.ValueOf(dc)
+        fmt.Printf("\nitemDC: %v", reflect.TypeOf(dc))
+        fmt.Printf("\nitemDC Value: %v", itemDc)
+    }*/
+
 	// Create header
 	w.Header().Add("Accept-Charset", "utf-8")
 	w.Header().Add("Content-Type", "application/json")
@@ -248,7 +357,7 @@ func (u *Uchiwa) datacentersHandler(w http.ResponseWriter, r *http.Request) {
 
 	gz := gzip.NewWriter(w)
 	defer gz.Close()
-	if err := json.NewEncoder(gz).Encode(datacenters); err != nil {
+	if err := json.NewEncoder(gz).Encode(outDatacenter); err != nil {
 		http.Error(w, fmt.Sprintf("Cannot encode response data: %v", err), http.StatusInternalServerError)
 		return
 	}
@@ -287,6 +396,40 @@ func (u *Uchiwa) eventsHandler(w http.ResponseWriter, r *http.Request) {
 		// GET on /events
 		events := FilterEvents(&u.Data.Events, token)
 
+        tok, _ := jwt.ParseFromRequest(r, func(t *jwt.Token) (interface{}, error) {
+            if _, ok := t.Method.(*jwt.SigningMethodRSA); !ok {
+                return nil, fmt.Errorf("Unexpected signing method: %v", t.Header["alg"])
+            }
+
+            return nil, nil
+        })
+
+        tenantDc := tok.Claims["Role"].(map[string]interface{})["Name"]
+
+//        fmt.Printf("\nEVENTS: %v", reflect.TypeOf(events))
+
+        ulos := make([]interface{}, 0)
+        for _, event := range events {
+            e, ok := event.(map[string]interface{})
+            if !ok {
+                fmt.Printf("Could not assert... %+v\n", e)
+            }
+            //            if c["dc"] == "lamaani" {
+            //                fmt.Printf("%v\n", c["dc"])
+            //            }
+            for k, v := range e {
+                //                fmt.Printf("Key: %v, Value: %v", k, v)
+                if k == "dc" && v == tenantDc {
+                    //                    fmt.Printf("IF?\n")
+                    ulos = append(ulos, e)
+                }
+            }
+            // else {
+            //   ulos = append(ulos, c)
+            //}
+
+        }
+
 		// Create header
 		w.Header().Add("Accept-Charset", "utf-8")
 		w.Header().Add("Content-Type", "application/json")
@@ -294,7 +437,7 @@ func (u *Uchiwa) eventsHandler(w http.ResponseWriter, r *http.Request) {
 
 		gz := gzip.NewWriter(w)
 		defer gz.Close()
-		if err := json.NewEncoder(gz).Encode(events); err != nil {
+		if err := json.NewEncoder(gz).Encode(ulos); err != nil {
 			http.Error(w, fmt.Sprintf("Cannot encode response data: %v", err), http.StatusInternalServerError)
 			return
 		}
@@ -328,6 +471,8 @@ func (u *Uchiwa) metricsHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "", http.StatusBadRequest)
 		return
 	}
+
+//    fmt.Printf("\nMETRICS: %v", &u.Data.Metrics)
 
 	encoder := json.NewEncoder(w)
 	if err := encoder.Encode(&u.Data.Metrics); err != nil {

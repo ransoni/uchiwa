@@ -9,8 +9,8 @@ import (
 	"strings"
 
 	"github.com/palourde/mergo"
-	"github.com/sensu/uchiwa/uchiwa/auth"
-	"github.com/sensu/uchiwa/uchiwa/logger"
+	"github.com/ransoni/uchiwa/uchiwa/auth"
+	"github.com/ransoni/uchiwa/uchiwa/logger"
 )
 
 var (
@@ -79,6 +79,7 @@ func Load(file, directories string) *Config {
 	}
 
 	conf.Uchiwa = initUchiwa(conf.Uchiwa)
+    logger.Warningf("Uchiwa config: %s", conf.Uchiwa)
 	return conf
 }
 
@@ -131,6 +132,7 @@ func loadDirectories(path string) *Config {
 // loadFile loads a Config struct from a configuration file
 func loadFile(path string) (*Config, error) {
 	logger.Warningf("Loading the configuration file %s", path)
+    logger.Warning("Does it take my changes?!?")
 
 	c := new(Config)
 	file, err := os.Open(path)
@@ -180,11 +182,16 @@ func initSensu(apis []SensuConfig) []SensuConfig {
 
 func initUchiwa(global GlobalConfig) GlobalConfig {
 
+    logger.Warning("INIT UCHIWA!")
+//    fmt.Printf("Config: %", global)
 	// Set the proper authentication driver
 	if global.Github.Server != "" {
 		global.Auth.Driver = "github"
 	} else if global.Gitlab.Server != "" {
 		global.Auth.Driver = "gitlab"
+	} else if global.FreeIPA.Server != "" {
+		global.Auth.Driver = "freeipa"
+		fmt.Printf("\n\nAuth, FreeIPA?\n\n")
 	} else if global.Ldap.Server != "" {
 		global.Auth.Driver = "ldap"
 		if global.Ldap.GroupBaseDN == "" {

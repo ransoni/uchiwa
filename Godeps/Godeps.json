@@ -1,5 +1,5 @@
 {
-	"ImportPath": "github.com/sensu/uchiwa",
+	"ImportPath": "github.com/ransoni/uchiwa",
 	"GoVersion": "go1.5.2",
 	"Packages": [
 		"./..."

@@ -3,11 +3,12 @@ package main
 import (
 	"flag"
 
-	"github.com/sensu/uchiwa/uchiwa"
-	"github.com/sensu/uchiwa/uchiwa/audit"
-	"github.com/sensu/uchiwa/uchiwa/auth"
-	"github.com/sensu/uchiwa/uchiwa/config"
-	"github.com/sensu/uchiwa/uchiwa/filters"
+	"github.com/ransoni/uchiwa/uchiwa"
+	"github.com/ransoni/uchiwa/uchiwa/audit"
+	"github.com/ransoni/uchiwa/uchiwa/auth"
+	"github.com/ransoni/uchiwa/uchiwa/config"
+	"github.com/ransoni/uchiwa/uchiwa/filters"
+	"fmt"
 )
 
 func main() {
@@ -20,9 +21,14 @@ func main() {
 
 	u := uchiwa.Init(config)
 
+    fmt.Printf("\nAUTHENTICATION: %s\n", config.Uchiwa.Auth.Driver)
+
 	authentication := auth.New(config.Uchiwa.Auth)
 	if config.Uchiwa.Auth.Driver == "simple" {
 		authentication.Simple(config.Uchiwa.Users)
+	} else if config.Uchiwa.Auth.Driver == "freeipa" {
+		fmt.Printf("\n\nAuthenticate with FreeIPA!!\n\n")
+		authentication.FreeIPA(config.Uchiwa.User, config.Uchiwa.Pass)
 	} else {
 		authentication.None()
 	}

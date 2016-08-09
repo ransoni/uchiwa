@@ -1,6 +1,6 @@
 package auth
 
-import "github.com/sensu/uchiwa/uchiwa/structs"
+import "github.com/ransoni/uchiwa/uchiwa/structs"
 
 // Config struct contains the authentication configuration
 type Config struct {
@@ -19,7 +19,9 @@ type User struct {
 	PasswordHash string
 	PasswordSalt string
 	Role         Role
+	Org			 string
 	Token        string
+    SesID        string
 }
 
 type loginFn func(string, string) (*User, error)
@@ -48,6 +50,14 @@ func (a *Config) Simple(u []User) {
 	a.DriverName = "simple"
 
 	users = u
+
+	initToken(a.Auth)
+}
+
+// FreeIPA function sets the Config struct in order to enable FreeIPA authentication
+func (a *Config) FreeIPA(u, p string) {
+	a.DriverFn = freeipa
+	a.DriverName = "freeipa"
 
 	initToken(a.Auth)
 }

@@ -7,10 +7,10 @@ import (
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gorilla/context"
-	"github.com/sensu/uchiwa/uchiwa/audit"
-	"github.com/sensu/uchiwa/uchiwa/helpers"
-	"github.com/sensu/uchiwa/uchiwa/logger"
-	"github.com/sensu/uchiwa/uchiwa/structs"
+	"github.com/ransoni/uchiwa/uchiwa/audit"
+	"github.com/ransoni/uchiwa/uchiwa/helpers"
+	"github.com/ransoni/uchiwa/uchiwa/logger"
+	"github.com/ransoni/uchiwa/uchiwa/structs"
 )
 
 const jwtToken = "jwtToken"
@@ -45,6 +45,13 @@ func restrictedHandler(next http.Handler) http.Handler {
 
 			return publicKey, nil
 		})
+
+//        fmt.Printf("\nTOKEN\n")
+//        for k, v := range token.Claims {
+//            fmt.Printf("\nKEY: %v", k)
+//            fmt.Printf(", VALUE: %v\n", v)
+//        }
+
 		if token != nil && err == nil {
 			if token.Valid {
 				setTokenIntoContext(r, token)
@@ -107,6 +114,8 @@ func (a *Config) GetIdentification() http.Handler {
 		}
 
 		// validate the user with the Login authentication driver
+		fmt.Printf("\nWhich authentication to use?\n")
+		fmt.Printf("\nauth: %s\n\n", a)
 		user, err := a.DriverFn(u, p)
 		if err != nil {
 			message := fmt.Sprintf("Authentication failed: %s", err)
@@ -128,6 +137,7 @@ func (a *Config) GetIdentification() http.Handler {
 		user.PasswordSalt = ""
 
 		token, err := GetToken(&user.Role, u)
+        fmt.Printf("\n\nTOKEN: %s", token)
 		if err != nil {
 			logger.Warningf("Authentication failed, could not create the token: %s", err)
 			http.Error(w, "", http.StatusInternalServerError)

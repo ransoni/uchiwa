@@ -3,7 +3,7 @@ package filters
 import (
 	"testing"
 
-	"github.com/sensu/uchiwa/uchiwa/structs"
+	"github.com/ransoni/uchiwa/uchiwa/structs"
 	"github.com/stretchr/testify/assert"
 )
 

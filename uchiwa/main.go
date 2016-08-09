@@ -4,11 +4,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/sensu/uchiwa/uchiwa/config"
-	"github.com/sensu/uchiwa/uchiwa/daemon"
-	"github.com/sensu/uchiwa/uchiwa/logger"
-	"github.com/sensu/uchiwa/uchiwa/sensu"
-	"github.com/sensu/uchiwa/uchiwa/structs"
+	"github.com/ransoni/uchiwa/uchiwa/config"
+	"github.com/ransoni/uchiwa/uchiwa/daemon"
+	"github.com/ransoni/uchiwa/uchiwa/logger"
+	"github.com/ransoni/uchiwa/uchiwa/sensu"
+	"github.com/ransoni/uchiwa/uchiwa/structs"
 )
 
 // Uchiwa structure is used to manage Uchiwa
