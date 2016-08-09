@@ -1,3 +1,37 @@
+### 0.17.1 (2016-08-02)
+#### Bug Fixes
+Remove various debugging traces - [Commit #d249aa4](https://github.com/sensu/uchiwa/commit/d249aa4)
+
+#### Other
+Upgrade to Go 1.6.3 with vendoring support - [PR #528](https://github.com/sensu/uchiwa/pull/528)
+The filters package now implements an interface for easier use - [PR #528](https://github.com/sensu/uchiwa/pull/528)
+Refactoring of the authorization logic - [PR #528](https://github.com/sensu/uchiwa/pull/528)
+
+### 0.17.0 (2016-07-20)
+#### Features
+- Add API token-based authentication - [PR #525](https://github.com/sensu/uchiwa/pull/525)
+
+#### Bug Fixes
+- Prevent old alerts to be displayed inadvertently - [Issue #512](https://github.com/sensu/uchiwa/issues/512)
+- Fix iframes support - [Issue #508](https://github.com/sensu/uchiwa/issues/508)
+
+#### Other
+Use Alpine Linux as the base image for Docker images - [PR #498](https://github.com/sensu/uchiwa/pull/498)
+
+### 0.16.0 (2016-06-23)
+#### Bug Fixes
+- The stashes could not be deleted from the stashes view - [Issue #503](https://github.com/sensu/uchiwa/issues/507)
+- Incorrect client attributes could be displayed on a client view - [Issue #471](https://github.com/sensu/uchiwa/issues/471)
+- The 'Show All' option should not use the current elements number - [Issue #466](https://github.com/sensu/uchiwa/issues/466)
+- The relative timestamp was not properly calculated on a stash view - [Issue #456](https://github.com/sensu/uchiwa/issues/456)
+
+#### Other
+- Refactoring of the Uchiwa API endpoints - [PR #513](https://github.com/sensu/uchiwa/pull/513)
+
+### 0.15.0 (2016-06-02)
+#### Features
+- Add support for upcoming Sensu 0.24.0 - [PR #500](https://github.com/sensu/uchiwa/pull/500)
+
 ### 0.14.5 (2016-05-10)
 #### Bug Fixes
 - Fix i386 packages - [PR #31](https://github.com/sensu/uchiwa-build/pull/31)

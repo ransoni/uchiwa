@@ -5,7 +5,8 @@ import (
 
 	"github.com/sensu/uchiwa/uchiwa"
 	"github.com/sensu/uchiwa/uchiwa/audit"
-	"github.com/sensu/uchiwa/uchiwa/auth"
+	"github.com/sensu/uchiwa/uchiwa/authentication"
+	"github.com/sensu/uchiwa/uchiwa/authorization"
 	"github.com/sensu/uchiwa/uchiwa/config"
 	"github.com/sensu/uchiwa/uchiwa/filters"
 )
@@ -20,28 +21,21 @@ func main() {
 
 	u := uchiwa.Init(config)
 
-	authentication := auth.New(config.Uchiwa.Auth)
+	auth := authentication.New(config.Uchiwa.Auth)
 	if config.Uchiwa.Auth.Driver == "simple" {
-		authentication.Simple(config.Uchiwa.Users)
+		auth.Simple(config.Uchiwa.Users)
 	} else {
-		authentication.None()
+		auth.None()
 	}
 
 	// Audit
 	audit.Log = audit.LogMock
 
-	// filters
-	uchiwa.FilterAggregates = filters.FilterAggregates
-	uchiwa.FilterChecks = filters.FilterChecks
-	uchiwa.FilterClients = filters.FilterClients
-	uchiwa.FilterDatacenters = filters.FilterDatacenters
-	uchiwa.FilterEvents = filters.FilterEvents
-	uchiwa.FilterStashes = filters.FilterStashes
-	uchiwa.FilterSubscriptions = filters.FilterSubscriptions
+	// Authorization
+	uchiwa.Authorization = &authorization.Uchiwa{}
 
-	uchiwa.FilterGetRequest = filters.GetRequest
-	uchiwa.FilterPostRequest = filters.PostRequest
-	uchiwa.FilterSensuData = filters.SensuData
+	// Filters
+	uchiwa.Filters = &filters.Uchiwa{}
 
-	u.WebServer(publicPath, authentication)
+	u.WebServer(publicPath, auth)
 }
