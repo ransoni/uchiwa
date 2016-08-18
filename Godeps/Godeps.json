@@ -1,7 +1,12 @@
 {
-	"ImportPath": "github.com/sensu/uchiwa",
+//<<<<<<< HEAD
+	"ImportPath": "github.com/ransoni/uchiwa",
 	"GoVersion": "go1.6",
 	"GodepVersion": "v74",
+//=======
+//	"ImportPath": "github.com/ransoni/uchiwa",
+//	"GoVersion": "go1.5.2",
+//>>>>>>> origin/FreeIPA_Auth
 	"Packages": [
 		"./..."
 	],

@@ -8,10 +8,15 @@ import (
 	"net/http"
 
 	"github.com/dgrijalva/jwt-go"
+//<<<<<<< HEAD:uchiwa/authentication/jwt.go
 	"github.com/gorilla/context"
 	"github.com/mitchellh/mapstructure"
-	"github.com/sensu/uchiwa/uchiwa/logger"
-	"github.com/sensu/uchiwa/uchiwa/structs"
+//	"github.com/sensu/uchiwa/uchiwa/logger"
+//	"github.com/sensu/uchiwa/uchiwa/structs"
+//=======
+	"github.com/ransoni/uchiwa/uchiwa/logger"
+	"github.com/ransoni/uchiwa/uchiwa/structs"
+//>>>>>>> origin/FreeIPA_Auth:uchiwa/auth/token.go
 )
 
 // JWTToken constant

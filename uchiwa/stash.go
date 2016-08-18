@@ -3,7 +3,7 @@ package uchiwa
 import (
 	"fmt"
 
-	"github.com/sensu/uchiwa/uchiwa/logger"
+	"github.com/ransoni/uchiwa/uchiwa/logger"
 )
 
 type stash struct {

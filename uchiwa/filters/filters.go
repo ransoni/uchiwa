@@ -1,8 +1,8 @@
 package filters
 
 import (
-	"github.com/dgrijalva/jwt-go"
-	"github.com/sensu/uchiwa/uchiwa/structs"
+    "github.com/dgrijalva/jwt-go"
+	"github.com/ransoni/uchiwa/uchiwa/structs"
 )
 
 // Filters contains the different filtering methods based on the edition

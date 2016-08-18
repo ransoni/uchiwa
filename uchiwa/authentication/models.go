@@ -1,6 +1,6 @@
 package authentication
 
-import "github.com/sensu/uchiwa/uchiwa/structs"
+import "github.com/ransoni/uchiwa/uchiwa/structs"
 
 var (
 	// Roles contains the roles for the active auth driver
@@ -50,4 +50,5 @@ type User struct {
 	Role         Role
 	Token        string
 	Username     string
+	Org			 string
 }

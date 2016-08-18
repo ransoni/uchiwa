@@ -5,10 +5,10 @@ import (
 	"net/http"
 
 	"github.com/gorilla/context"
-	"github.com/sensu/uchiwa/uchiwa/audit"
-	"github.com/sensu/uchiwa/uchiwa/helpers"
-	"github.com/sensu/uchiwa/uchiwa/logger"
-	"github.com/sensu/uchiwa/uchiwa/structs"
+	"github.com/ransoni/uchiwa/uchiwa/audit"
+	"github.com/ransoni/uchiwa/uchiwa/helpers"
+	"github.com/ransoni/uchiwa/uchiwa/logger"
+	"github.com/ransoni/uchiwa/uchiwa/structs"
 )
 
 // New function initalizes and returns a Config struct

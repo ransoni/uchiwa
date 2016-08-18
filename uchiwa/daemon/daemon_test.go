@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/sensu/uchiwa/uchiwa/structs"
+	"github.com/ransoni/uchiwa/uchiwa/structs"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )

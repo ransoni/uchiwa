@@ -1,8 +1,9 @@
 package config
 
 import (
-	"github.com/sensu/uchiwa/uchiwa/authentication"
-	"github.com/sensu/uchiwa/uchiwa/structs"
+	"github.com/ransoni/uchiwa/uchiwa/authentication"
+//	"github.com/ransoni/uchiwa/uchiwa/auth"
+	"github.com/ransoni/uchiwa/uchiwa/structs"
 )
 
 // Config struct contains []SensuConfig and UchiwaConfig structs
@@ -38,10 +39,13 @@ type GlobalConfig struct {
 	Audit      Audit
 	Auth       structs.Auth
 	Db         Db
+	Email      Email
 	Enterprise bool
+	FreeIPA    FreeIPA
 	Github     Github
 	Gitlab     Gitlab
 	Ldap       Ldap
+	reCAPTCHA  reCAPTCHA
 	SSL        SSL
 }
 
@@ -55,6 +59,28 @@ type Audit struct {
 type Db struct {
 	Driver string
 	Scheme string
+}
+
+// Email struct contains the Email configuration for sending notifications
+type Email struct {
+	Host         string
+	Port         int
+	Email        string
+	Name         string
+	Subject      string
+	TemplatePath string
+	TemplateFile string
+}
+
+// FreeIPA struct contains the FreeIPA driver configuration
+type FreeIPA struct {
+	Server       string
+	Port         int
+	Domain       string
+	BaseDN       string
+	User         string
+	Pass         string
+	Roles        []authentication.Role
 }
 
 // Github struct contains the GitHub driver configuration
@@ -94,8 +120,26 @@ type Ldap struct {
 	UserObjectClass      string
 }
 
+// reCAPTCHA struct contains the reCAPTCHA url and key
+type reCAPTCHA struct {
+	Url        string
+	SecretKey  string
+}
+
+// SMS struct contains the SMS configuration for sending notifications
+type SMS struct {
+    Url              string
+    User             int
+    Pass             string
+    NewUserText      string
+    ResetPasswdText  string
+    TemplatePath     string
+    TemplateFile     string
+}
+
 // SSL struct contains the path the SSL certificate and key
 type SSL struct {
 	CertFile string
 	KeyFile  string
 }
+

@@ -9,8 +9,13 @@ import (
 	"strings"
 
 	"github.com/palourde/mergo"
-	"github.com/sensu/uchiwa/uchiwa/authentication"
-	"github.com/sensu/uchiwa/uchiwa/logger"
+//<<<<<<< HEAD
+//	"github.com/sensu/uchiwa/uchiwa/authentication"
+//	"github.com/sensu/uchiwa/uchiwa/logger"
+//=======
+	"github.com/ransoni/uchiwa/uchiwa/authentication"
+	"github.com/ransoni/uchiwa/uchiwa/logger"
+//>>>>>>> origin/FreeIPA_Auth
 )
 
 var (
@@ -82,8 +87,14 @@ func Load(file, directories string) *Config {
 		}
 	}
 
+//<<<<<<< HEAD
 	Private.Uchiwa = initUchiwa(Private.Uchiwa)
 	return Private
+//=======
+//	conf.Uchiwa = initUchiwa(conf.Uchiwa)
+//    logger.Warningf("Uchiwa config: %s", conf.Uchiwa)
+//	return conf
+//>>>>>>> origin/FreeIPA_Auth
 }
 
 // loadDirectories loads a Config struct from one or multiple directories of configuration
@@ -135,6 +146,7 @@ func loadDirectories(path string) *Config {
 // loadFile loads a Config struct from a configuration file
 func loadFile(path string) (*Config, error) {
 	logger.Warningf("Loading the configuration file %s", path)
+    logger.Warning("Does it take my changes?!?")
 
 	c := new(Config)
 	file, err := os.Open(path)
@@ -184,6 +196,8 @@ func initSensu(apis []SensuConfig) []SensuConfig {
 
 func initUchiwa(global GlobalConfig) GlobalConfig {
 
+    logger.Warning("INIT UCHIWA!")
+//    fmt.Printf("Config: %", global)
 	// Set the proper authentication driver
 	if global.Github.Server != "" {
 		global.Auth.Driver = "github"
@@ -193,10 +207,16 @@ func initUchiwa(global GlobalConfig) GlobalConfig {
 		}
 	} else if global.Gitlab.Server != "" {
 		global.Auth.Driver = "gitlab"
+//<<<<<<< HEAD TODO: remove unused merged code
 
 		for i := range global.Gitlab.Roles {
 			authentication.Roles = append(authentication.Roles, global.Gitlab.Roles[i])
 		}
+//=======
+	} else if global.FreeIPA.Server != "" {
+		global.Auth.Driver = "freeipa"
+		fmt.Printf("\n\nAuth, FreeIPA?\n\n")
+//>>>>>>> origin/FreeIPA_Auth
 	} else if global.Ldap.Server != "" {
 		global.Auth.Driver = "ldap"
 		if global.Ldap.GroupBaseDN == "" {

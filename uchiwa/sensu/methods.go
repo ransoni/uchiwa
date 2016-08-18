@@ -8,9 +8,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/sensu/uchiwa/uchiwa/helpers"
-	"github.com/sensu/uchiwa/uchiwa/logger"
-	"github.com/sensu/uchiwa/uchiwa/structs"
+	"github.com/ransoni/uchiwa/uchiwa/helpers"
+	"github.com/ransoni/uchiwa/uchiwa/logger"
+	"github.com/ransoni/uchiwa/uchiwa/structs"
 )
 
 // These are the methods of the API struct that interface the more basic

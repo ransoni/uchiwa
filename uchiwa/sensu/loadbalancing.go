@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/sensu/uchiwa/uchiwa/logger"
+	"github.com/ransoni/uchiwa/uchiwa/logger"
 )
 
 // These are the methods directly used by the public methods of the sensu

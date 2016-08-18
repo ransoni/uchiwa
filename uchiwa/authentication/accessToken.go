@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/dgrijalva/jwt-go"
-	"github.com/sensu/uchiwa/uchiwa/logger"
+	"github.com/ransoni/uchiwa/uchiwa/logger"
 )
 
 // TokenLocation represents a function that accepts a request as input and returns
