@@ -12,9 +12,10 @@ import (
     "github.com/ransoni/uchiwa/uchiwa/filters"
     "github.com/ransoni/uchiwa/uchiwa/logger"
     "github.com/ransoni/uchiwa/uchiwa/structs"
+//    "github.com/ransoni/uchiwa/uchiwa/helpers"
 
     "github.com/dgrijalva/jwt-go"
-    "reflect"
+    _ "reflect"
 )
 
 // Authorization contains the available authorization methods
@@ -189,22 +190,19 @@ func (u *Uchiwa) checksHandler(w http.ResponseWriter, r *http.Request) {
         checks = make([]interface{}, 0)
     }
 
+    
     ulos := make([]interface{}, 0)
     for _, check := range checks {
         c, ok := check.(map[string]interface{})
         if !ok {
             fmt.Printf("Could not assert... %+v\n", c)
         }
-//        fmt.Printf("\n%v", check)
         for k, v := range c {
-//            fmt.Printf("\nCHECK: %v, %v\n", k, v)
             if k == "dc" && v == tenantDc {
-//                fmt.Printf("\nTenant CHECK: %v, %v\n", k, v)
                 ulos = append(ulos, c)
             }
         }
     }
-    fmt.Printf("\nULOS: %v (%v)", ulos, len(ulos))
 
     // Create header
     w.Header().Add("Accept-Charset", "utf-8")
@@ -375,7 +373,6 @@ func (u *Uchiwa) clientsHandler(w http.ResponseWriter, r *http.Request) {
     })
 
     tenantDc := tok.Claims["Role"].(map[string]interface{})["Name"]
-    fmt.Printf("\nTenantDC: %v", tenantDc)
 
     clients := Filters.Clients(&u.Data.Clients, token)
     if len(clients) == 0 {
@@ -472,20 +469,9 @@ func (u *Uchiwa) datacentersHandler(w http.ResponseWriter, r *http.Request) {
     var outDatacenter []*structs.Datacenter
 
     for _, dc := range datacenters {
-        //        fmt.Printf("\nDatacenter: %v", dc.Name)
-        //        itemDc := reflect.ValueOf(dc)
-        //        fmt.Printf("\nitemDC: %v", reflect.TypeOf(dc))
-        //        fmt.Printf("\nitemDC Value: %v", itemDc)
-
         if dc.Name == tenantDc {
             outDatacenter = append(outDatacenter, dc)
         }
-        //        append([]interface{}{}, c)
-
-        //        for k, v := range itemDc {
-        //            fmt.Printf("\n%v: %v", k, v)
-        //        }
-
     }
 
     // Create header
@@ -698,13 +684,158 @@ func (u *Uchiwa) metricsHandler(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    fmt.Printf("\nMetrics Type: %v\n", reflect.TypeOf(&u.Data.Metrics))
+    token := authentication.GetJWTFromContext(r)
 
-    var outMetrics []*structs.Metrics
-    fmt.Printf("\noutMetrics: %v", outMetrics)
+//    Get Tenant DC from cookie for filtering
+    tok, _ := jwt.ParseFromRequest(r, func(t *jwt.Token) (interface{}, error) {
+        if _, ok := t.Method.(*jwt.SigningMethodRSA); !ok {
+            return nil, fmt.Errorf("Unexpected signing method: %v", t.Header["alg"])
+        }
+
+        return nil, nil
+    })
+
+    tenantDc := tok.Claims["Role"].(map[string]interface{})["Name"]
+
+//  Clients metrics
+    clients := Filters.Clients(&u.Data.Clients, token)
+
+    //      Filter clients for metrics
+    clientsFiltered := make([]interface{}, 0)
+    for _, item := range clients {
+        c, ok := item.(map[string]interface{})
+        if !ok {
+            fmt.Printf("Could not assert... %+v\n", c)
+        }
+
+        for k, v := range c {
+            if k == "dc" && v == tenantDc {
+                clientsFiltered = append(clientsFiltered, c)
+            }
+        }
+    }
+
+    metrics := structs.Metrics{}
+
+    metrics.Clients.Total = len(clientsFiltered)
+
+    for _, c := range clientsFiltered {
+        client := c.(map[string]interface{})
+
+        status, ok := client["status"].(int)
+        if !ok {
+            logger.Warningf("Could not assert this status to an int: %+v", client["status"])
+            continue
+        }
+
+        if status == 2.0 {
+            metrics.Clients.Critical++
+            continue
+        } else if status == 1.0 {
+            metrics.Clients.Warning++
+            continue
+        } else if status == 0.0 {
+            continue
+        }
+        metrics.Clients.Unknown++
+    }
+
+//  Events Metrics
+    events := Filters.Events(&u.Data.Events, token)
+    if len(events) == 0 {
+        events = make([]interface{}, 0)
+    }
+
+    filteredEvents := make([]interface{}, 0)
+    for _, event := range events {
+        e, ok := event.(map[string]interface{})
+        if !ok {
+            fmt.Printf("Could not assert... %+v\n", e)
+        }
+        for k, v := range e {
+            if k == "dc" && v == tenantDc {
+                filteredEvents = append(filteredEvents, e)
+            }
+        }
+    }
+
+    metrics.Events.Total = len(filteredEvents)
+
+    for _, e := range filteredEvents {
+        event := e.(map[string]interface{})
+
+        check, ok := event["check"].(map[string]interface{})
+        if !ok {
+            logger.Warningf("Could not assert this check to an interface: %+v", event["check"])
+            continue
+        }
+
+        status, ok := check["status"].(float64)
+        if !ok {
+            logger.Warningf("Could not assert this status to a flot64: %+v", check["status"])
+            continue
+        }
+
+        if status == 2.0 {
+            metrics.Events.Critical++
+            continue
+        } else if status == 1.0 {
+            metrics.Events.Warning++
+            continue
+        }
+        metrics.Events.Unknown++
+    }
+
+    datacenters := Filters.Datacenters(u.Data.Dc, token)
+
+    // Filter datacenters for tenant
+
+    for _, dc := range datacenters {
+        if dc.Name == tenantDc {
+            metrics.Datacenters.Total++
+        }
+    }
+
+//   Checks Metrics
+    checks := Filters.Checks(&u.Data.Checks, token)
+//    if len(checks) == 0 {
+//        metrics.Checks.Total = make([]interface{}, 0)
+//    }
+
+    for _, check := range checks {
+        c, ok := check.(map[string]interface{})
+        if !ok {
+            fmt.Printf("Could not assert... %+v\n", c)
+        }
+        for k, v := range c {
+            if k == "dc" && v == tenantDc {
+                metrics.Checks.Total++
+            }
+        }
+    }
+
+//    Stashes Metrics
+//    stashes := Filters.Stashes(&u.Data.Stashes, token)
+
+//    if len(stashes) == 0 {
+//        metrics.Stashes.Total = make([]interface{}, 0)
+//    }
+
+    for _, stash := range Filters.Stashes(&u.Data.Stashes, token) {
+        s, ok := stash.(map[string]interface{})
+        if !ok {
+            fmt.Printf("Could not assert... %+v\n", s)
+        }
+        for k, v := range s {
+            if k == "dc" && v == tenantDc {
+                metrics.Stashes.Total++
+            }
+        }
+    }
 
     encoder := json.NewEncoder(w)
-    if err := encoder.Encode(&u.Data.Metrics); err != nil {
+//    if err := encoder.Encode(&u.Data.Metrics); err != nil {
+    if err := encoder.Encode(metrics); err != nil {
         http.Error(w, fmt.Sprintf("Cannot encode response data: %v", err), http.StatusInternalServerError)
         return
     }
