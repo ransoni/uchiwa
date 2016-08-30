@@ -1051,11 +1051,35 @@ func (u *Uchiwa) stashHandler(w http.ResponseWriter, r *http.Request) {
 func (u *Uchiwa) stashesHandler(w http.ResponseWriter, r *http.Request) {
     token := authentication.GetJWTFromContext(r)
 
+    tok, _ := jwt.ParseFromRequest(r, func(t *jwt.Token) (interface{}, error) {
+        if _, ok := t.Method.(*jwt.SigningMethodRSA); !ok {
+            return nil, fmt.Errorf("Unexpected signing method: %v", t.Header["alg"])
+        }
+
+        return nil, nil
+    })
+
+    tenantDc := tok.Claims["Role"].(map[string]interface{})["Name"]
+
     if r.Method == "GET" || r.Method == "HEAD" {
         // GET on /stashes
         stashes := Filters.Stashes(&u.Data.Stashes, token)
         if len(stashes) == 0 {
             stashes = make([]interface{}, 0)
+        }
+
+        ulos := make([]interface{}, 0)
+
+        for _, stash := range stashes {
+            s, ok := stash.(map[string]interface{})
+            if !ok {
+                fmt.Printf("Could not assert... %+v\n", s)
+            }
+            for k, v := range s {
+                if k == "dc" && v == tenantDc {
+                    ulos = append(ulos, s)
+                }
+            }
         }
 
         // Create header
@@ -1065,7 +1089,7 @@ func (u *Uchiwa) stashesHandler(w http.ResponseWriter, r *http.Request) {
         // If GZIP compression is not supported by the client
         if !strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
             encoder := json.NewEncoder(w)
-            if err := encoder.Encode(stashes); err != nil {
+            if err := encoder.Encode(ulos); err != nil {
                 http.Error(w, fmt.Sprintf("Cannot encode response data: %v", err), http.StatusInternalServerError)
                 return
             }
@@ -1076,7 +1100,7 @@ func (u *Uchiwa) stashesHandler(w http.ResponseWriter, r *http.Request) {
 
         gz := gzip.NewWriter(w)
         defer gz.Close()
-        if err := json.NewEncoder(gz).Encode(stashes); err != nil {
+        if err := json.NewEncoder(gz).Encode(ulos); err != nil {
             http.Error(w, fmt.Sprintf("Cannot encode response data: %v", err), http.StatusInternalServerError)
             return
         }
