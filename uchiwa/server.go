@@ -190,6 +190,7 @@ func (u *Uchiwa) checksHandler(w http.ResponseWriter, r *http.Request) {
         checks = make([]interface{}, 0)
     }
 
+    
     ulos := make([]interface{}, 0)
     for _, check := range checks {
         c, ok := check.(map[string]interface{})
