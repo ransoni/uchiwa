@@ -16,7 +16,10 @@ import (
 
     "github.com/dgrijalva/jwt-go"
     _ "reflect"
+    "net/url"
 )
+
+var debug = true
 
 // Authorization contains the available authorization methods
 var Authorization authorization.Authorization
@@ -430,7 +433,9 @@ func (u *Uchiwa) configHandler(w http.ResponseWriter, r *http.Request) {
 
     if len(resources) == 2 {
         encoder := json.NewEncoder(w)
-        if err := encoder.Encode(u.PublicConfig); err != nil {
+        var empty struct{}
+//        if err := encoder.Encode(u.PublicConfig); err != nil {
+        if err := encoder.Encode(empty); err != nil {
             http.Error(w, fmt.Sprintf("Cannot encode response data: %v", err), http.StatusInternalServerError)
             return
         }
@@ -662,13 +667,44 @@ func (u *Uchiwa) eventsHandler(w http.ResponseWriter, r *http.Request) {
 // healthHandler serves the /health endpoint
 func (u *Uchiwa) healthHandler(w http.ResponseWriter, r *http.Request) {
     encoder := json.NewEncoder(w)
+
+    tok, _ := jwt.ParseFromRequest(r, func(t *jwt.Token) (interface{}, error) {
+        if _, ok := t.Method.(*jwt.SigningMethodRSA); !ok {
+            return nil, fmt.Errorf("Unexpected signing method: %v", t.Header["alg"])
+        }
+
+        return nil, nil
+    })
+
+    tenantDc := tok.Claims["Role"].(map[string]interface{})["Name"]
+
     var err error
+
+    out := &structs.Health{}
+    out.Sensu = make(map[string]structs.SensuHealth, 0)
     if r.URL.Path[1:] == "health/sensu" {
-        err = encoder.Encode(u.Data.Health.Sensu)
+
+        for key, val := range u.Data.Health.Sensu {
+
+            if key == "Lamaani" {
+                out.Sensu[key] = val
+            }
+        }
+        err = encoder.Encode(out.Sensu)
+//        err = encoder.Encode("{}")
     } else if r.URL.Path[1:] == "health/uchiwa" {
         err = encoder.Encode(u.Data.Health.Uchiwa)
+//        err = encoder.Encode("{}")
     } else {
-        err = encoder.Encode(u.Data.Health)
+        out.Uchiwa = u.Data.Health.Uchiwa
+
+        for key, val := range u.Data.Health.Sensu {
+            if key == tenantDc {
+                out.Sensu[key] = val
+            }
+        }
+//        err = encoder.Encode(u.Data.Health)
+        err = encoder.Encode(out)
     }
 
     if err != nil {
@@ -1158,6 +1194,476 @@ func (u *Uchiwa) subscriptionsHandler(w http.ResponseWriter, r *http.Request) {
     }
 }
 
+// getTenantHandler serves the /tenant endpoint
+func (u *Uchiwa) getTenantHandler(w http.ResponseWriter, r *http.Request) {
+//    encoder := json.NewEncoder(w)
+
+    fmt.Printf("\n---TENANT HANDLER ---")
+
+    tok, _ := jwt.ParseFromRequest(r, func(t *jwt.Token) (interface{}, error) {
+        if _, ok := t.Method.(*jwt.SigningMethodRSA); !ok {
+            return nil, fmt.Errorf("Unexpected signing method: %v", t.Header["alg"])
+        }
+
+        return nil, nil
+    })
+
+    tenantDc := tok.Claims["Role"].(map[string]interface{})["Name"]
+
+    // EXTRACT DATA FROM COOKIE
+    cookie, _ := r.Cookie("uchiwa_auth")
+    cookieValue := "payload="
+    cookieValue += cookie.Value
+
+    c, _ := url.ParseQuery(cookieValue)
+
+    var data map[string]interface{}
+
+    json.Unmarshal([]byte(c["payload"][0]), &data)
+    // END OF COOKIE HANDLING
+
+    if debug {
+        logger.Infof("DEBUG: Org:", tenantDc)
+    }
+
+    var tenantOut map[string]string
+    tenantOut = make(map[string]string)
+//    tenantOut = getTenantInfo(u.PublicConfig, data["Org"].(string))
+    tenantOut = u.getTenantInfo(tenantDc.(string))
+
+    if debug {
+        logger.Infof("DEBUG: TenantOut:", tenantOut)
+    }
+
+    encoder := json.NewEncoder(w)
+    if err := encoder.Encode(tenantOut); err != nil {
+        http.Error(w, fmt.Sprintf("Cannot encode response data: %v", err), http.StatusInternalServerError)
+    }
+}
+
+// getUserHandler serves the /user endpoint, providing logged in user
+func (u *Uchiwa) getUserHandler(w http.ResponseWriter, r *http.Request) {
+    var data map[string]interface{}
+
+    encoder := json.NewEncoder(w)
+
+    // Extract data from cookie
+    authCookie, _ := r.Cookie("uchiwa_auth")
+    cookieValue := "payload="
+    cookieValue += authCookie.Value
+
+    cookie, _ := url.ParseQuery(cookieValue)
+
+    json.Unmarshal([]byte(cookie["payload"][0]), &data)
+    fmt.Printf("\nData: %v", data)
+
+    var userOut map[string]string
+    userOut = make(map[string]string)
+    userOut, _ = u.getUserInfo(data["Org"].(string), data["Email"].(string), data["Username"].(string))
+
+    fmt.Println("TenantOut:", userOut)
+
+    if err := encoder.Encode(userOut); err != nil {
+        http.Error(w, fmt.Sprintf("Cannot encode response data: %v", err), http.StatusInternalServerError)
+    }
+}
+
+// getUsersHandler serves the /users endpoint, providing info about organisations users to admin user
+func (u *Uchiwa) getUsersHandler(w http.ResponseWriter, r *http.Request) {
+    var data map[string]interface{}
+
+    encoder := json.NewEncoder(w)
+
+    if debug {
+        fmt.Println("==== USER HANDLER ====\n\n")
+    }
+
+    // HAETAAN KEKSISTÄ DATAA
+    cookie, _ := r.Cookie("uchiwa_auth")
+    cookieValue := "payload="
+    cookieValue += cookie.Value
+
+    c, _ := url.ParseQuery(cookieValue)
+    //	fmt.Println("C:", c)
+
+    json.Unmarshal([]byte(c["payload"][0]), &data)
+    // KEKSIN KÄSITTELY LOPPU
+
+    fmt.Println("ORG:", data["Org"])
+    fmt.Println("User email:", data["Email"])
+
+    //	var usersOut map[int]map[string]string
+    //	usersOut = make(map[int]map[string]string)
+    //userOut = getUserInfo(data["Org"].(string), data["Email"].(string))
+    //	conf := PublicConfig
+    usersOut, _ := u.getUsers(data["Org"].(string))
+
+    //	FOR TESTING
+    /*
+        userOut["name"] = "Testi Taina"
+        userOut["tel"] = "+358505057890"
+        userOut["city"] = "Helsinki"
+    */
+
+    fmt.Println("TenantOut:", usersOut)
+
+    //fmt.Println(outResults)
+    if err := encoder.Encode(usersOut); err != nil {
+        http.Error(w, fmt.Sprintf("Cannot encode response data: %v", err), http.StatusInternalServerError)
+    }
+}
+
+// postAddUserHandler serves /post_user endpoint, which adds user to LDAP
+func (u *Uchiwa) postAddUserHandler(w http.ResponseWriter, r *http.Request) {
+    var data map[string]interface{}
+
+    encoder := json.NewEncoder(w)
+
+    decoder := json.NewDecoder(r.Body)
+    var req map[string]string
+    err := decoder.Decode(&req)
+    if err != nil {
+        http.Error(w, fmt.Sprint("Could not decode body"), http.StatusInternalServerError)
+    }
+    if debug {
+        fmt.Println("REQUEST:", req)
+    }
+    if debug {
+        for key, value := range req {
+            fmt.Printf("Key: %s\nValue: %s", key, value)
+        }
+    }
+
+    // HAETAAN KEKSISTÄ DATAA
+    cookie, _ := r.Cookie("uchiwa_auth")
+    cookieValue := "payload="
+    cookieValue += cookie.Value
+
+    c, _ := url.ParseQuery(cookieValue)
+    //	fmt.Println("***COOKIE***\nC:", c)
+
+    json.Unmarshal([]byte(c["payload"][0]), &data)
+    // KEKSIN KÄSITTELY LOPPU
+
+
+    //	var resp map[string]string
+    //	resp = make(map[string]string)
+    response, err := u.addUser(data["Username"].(string), data["Org"].(string), req)
+
+    //	fmt.Println("FORM DATA:", r.FormValue("oldPassword"))
+    if debug {
+        if err != nil {
+            fmt.Println("addUser response: ", err)
+            fmt.Printf("err.Error: %v\n", err.Error())
+        }
+    }
+
+    if debug {
+        fmt.Println("ORG:", data["Org"])
+        fmt.Println("User email:", data["Email"])
+    }
+
+    var userOut map[string]string
+    userOut = make(map[string]string)
+    //userOut = getUserInfo(data["Org"].(string), data["Email"].(string))
+    //	conf := PublicConfig
+    //	userOut, _ = getUserInfo(PublicConfig, data["Org"].(string), data["Email"].(string))
+
+    //	FOR TESTING
+    userOut["status"] = response["status"]
+    userOut["error"] = err.Error()
+
+    //fmt.Println(outResults)
+    if err := encoder.Encode(userOut); err != nil {
+        http.Error(w, fmt.Sprintf("Cannot encode response data: %v", err), http.StatusInternalServerError)
+    }
+}
+
+// Serves /post_user endpoint
+func (u *Uchiwa) postUserHandler(w http.ResponseWriter, r *http.Request) {
+    //	fmt.Println("****** ENTERING postUserHandler ******")
+    var data map[string]interface{}
+
+    encoder := json.NewEncoder(w)
+
+    decoder := json.NewDecoder(r.Body)
+    var req map[string]string
+    err := decoder.Decode(&req)
+    if err != nil {
+        fmt.Printf("Decode error: %v\n", err)
+        http.Error(w, fmt.Sprint("Could not decode body"), http.StatusInternalServerError)
+    }
+    if debug {
+        fmt.Println("REQUEST:", req)
+    }
+    if debug {
+        for key, value := range req {
+            fmt.Printf("Key: %s\nValue: %s", key, value)
+        }
+    }
+
+    // HAETAAN KEKSISTÄ DATAA
+    cookie, _ := r.Cookie("uchiwa_auth")
+    cookieValue := "payload="
+    cookieValue += cookie.Value
+
+    c, _ := url.ParseQuery(cookieValue)
+    //	fmt.Println("***COOKIE***\nC:", c)
+
+    json.Unmarshal([]byte(c["payload"][0]), &data)
+    // KEKSIN KÄSITTELY LOPPU
+
+
+    //	var resp map[string]string
+    //	resp = make(map[string]string)
+    response, err := u.editUser(data["Username"].(string), data["Org"].(string), req)
+
+    //	fmt.Println("FORM DATA:", r.FormValue("oldPassword"))
+    if debug {
+        if err != nil {
+            fmt.Println("addUser response: ", err)
+            fmt.Printf("err.Error: %v\n", err.Error())
+        }
+        //		fmt.Println("METHOD:", r.Method)
+        //		fmt.Println("BODY:", r.Body)
+        //		fmt.Println("\n\n\n==== ADDUSER POST HANDLER ====\n")
+        //		fmt.Printf("REQUEST: %s", r)
+    }
+
+    if debug {
+        fmt.Println("ORG:", data["Org"])
+        fmt.Println("User email:", data["Email"])
+    }
+
+    var userOut map[string]string
+    userOut = make(map[string]string)
+    //userOut = getUserInfo(data["Org"].(string), data["Email"].(string))
+    //	conf := PublicConfig
+    //	userOut, _ = getUserInfo(PublicConfig, data["Org"].(string), data["Email"].(string))
+
+    //	FOR TESTING
+    userOut["status"] = response["status"]
+    userOut["error"] = err.Error()
+
+    fmt.Println("UserOut:", userOut)
+
+    //fmt.Println(outResults)
+    if err := encoder.Encode(userOut); err != nil {
+        http.Error(w, fmt.Sprintf("Cannot encode response data: %v", err), http.StatusInternalServerError)
+    }
+}
+
+// Serves /post_passwd endpoint
+func (u *Uchiwa) postPasswdHandler(w http.ResponseWriter, r *http.Request) {
+    var data map[string]interface{}
+
+    encoder := json.NewEncoder(w)
+
+    decoder := json.NewDecoder(r.Body)
+    var req map[string]string
+    err := decoder.Decode(&req)
+    if err != nil {
+        http.Error(w, fmt.Sprint("Could not decode body"), http.StatusInternalServerError)
+    }
+    if debug {
+        fmt.Println("REQUEST:", req)
+        fmt.Println("OLDPASSWORD:", req)
+    }
+    if debug {
+        for key, value := range req {
+            fmt.Printf("Key: %s\nValue: %s", key, value)
+        }
+    }
+
+    // HAETAAN KEKSISTÄ DATAA
+    cookie, _ := r.Cookie("uchiwa_auth")
+    cookieValue := "payload="
+    cookieValue += cookie.Value
+
+    c, _ := url.ParseQuery(cookieValue)
+    //	fmt.Println("C:", c)
+
+    json.Unmarshal([]byte(c["payload"][0]), &data)
+    // KEKSIN KÄSITTELY LOPPU
+
+    // Username from cookie to req
+    req["userName"] = data["Username"].(string)
+
+    if debug {
+        fmt.Println("ORG:", data["Org"])
+        fmt.Println("User email:", data["Email"])
+        fmt.Printf("Username: %s\n", data["Username"])
+    }
+
+    //	var resp map[string]string
+    //	resp = make(map[string]string)
+    response, err := u.changePasswd(req)
+
+    //	fmt.Println("FORM DATA:", r.FormValue("oldPassword"))
+    if debug {
+        fmt.Println("FORM DATA:", r.PostForm)
+        fmt.Println("METHOD:", r.Method)
+        fmt.Println("BODY:", r.Body)
+
+        fmt.Println("\n\n\n==== PASSWORD POST HANDLER ====\n")
+        fmt.Printf("REQUEST: %s", r)
+    }
+
+    var userOut map[string]string
+    userOut = make(map[string]string)
+    //userOut = getUserInfo(data["Org"].(string), data["Email"].(string))
+    //	conf := PublicConfig
+    //	userOut, _ = getUserInfo(PublicConfig, data["Org"].(string), data["Email"].(string))
+
+    //	FOR TESTING
+    userOut["status"] = response["status"]
+    userOut["error"] = err.Error()
+
+    //	fmt.Println("TenantOut:", userOut)
+
+    //fmt.Println(outResults)
+    if err := encoder.Encode(userOut); err != nil {
+        http.Error(w, fmt.Sprintf("Cannot encode response data: %v", err), http.StatusInternalServerError)
+    }
+}
+
+// Serves /post_forgotpasswd endpoint
+func (u *Uchiwa) postForgotPasswdHandler(w http.ResponseWriter, r *http.Request) {
+    if debug {
+        fmt.Println("**** Func: server.go/postForgotPasswdHandler ****")
+    }
+
+    encoder := json.NewEncoder(w)
+
+    decoder := json.NewDecoder(r.Body)
+    var req map[string]string
+    err := decoder.Decode(&req)
+    if err != nil {
+        http.Error(w, fmt.Sprint("Could not decode body"), http.StatusInternalServerError)
+    }
+    //	if debug {
+    //		fmt.Println("REQUEST:", req)
+    //	}
+    if debug {
+        for key, value := range req {
+            fmt.Printf("Key: %s\nValue: %s\n", key, value)
+        }
+    }
+
+    //	Lets see what the request contains...
+    fmt.Printf("Client IP: %v", r.RemoteAddr)
+    clientIP := r.RemoteAddr
+    challenge := req["response"]
+    fmt.Printf("\n\nRESPONSE: %v\n\n", challenge)
+    fmt.Printf("\n\nVERIFY URL: %v\n\n", u.Config.Uchiwa.ReCaptcha.Url)
+    fmt.Printf("\n\nVERIFY SECRETKEY: %v\n\n", u.Config.Uchiwa.ReCaptcha.SecretKey)
+    //	Verify the reCAPTCHA, needed: VerifyUrl, captchaReques, (clientIP)
+
+    type Verify struct {
+        Success			bool
+        Challenge_ts	string
+        Hostname		string
+        Errorcodes		map[string]string
+    }
+    resp, err := http.PostForm(u.Config.Uchiwa.ReCaptcha.Url,
+    url.Values{"secret": {u.Config.Uchiwa.ReCaptcha.SecretKey}, "remoteip": {clientIP}, "response": {req["response"]}})
+    if err != nil {
+        fmt.Println("Post error: %s", err)
+    }
+    defer resp.Body.Close()
+    verifyDecoder := json.NewDecoder(resp.Body)
+    //	var verifyResponse map[string]string
+    var verifyResponse Verify
+    verifyErr := verifyDecoder.Decode(&verifyResponse)
+    if verifyErr != nil {
+        http.Error(w, fmt.Sprint("Could not decode body"), http.StatusInternalServerError)
+    }
+    fmt.Printf("\nVERIFY RESPONSE: %v", verifyResponse)
+
+    //	if debug {
+    //		for key, value := range verifyResponse {
+    //			fmt.Printf("Key: %s\nValue: %s\n", key, value)
+    //		}
+    //	}
+    //
+    //	s := ""
+    //	body, err := ioutil.ReadAll(resp.Body)
+    //	if err != nil {
+    //		fmt.Println("Read error: could not read body: %s", err)
+    //	} else {
+    //		s = string(body)
+    //		fmt.Printf("\nverify Response: %v\n", s)
+    //	}
+
+    var resetOut map[string]string
+    resetOut = make(map[string]string)
+
+    if verifyResponse.Success == false {
+
+        //	FOR TESTING
+        resetOut["status"] = "Could not verify reCAPTCHA"
+        //		resetOut["error"] = err.Error()
+
+    } else if verifyResponse.Success == true {
+        response, err := u.resetPassword(req)
+
+        if debug {
+            if err != nil {
+                fmt.Println("resetPassword response: ", err)
+                fmt.Printf("err.Error: %v\n", err.Error())
+            }
+        }
+
+        resetOut["status"] = response["status"]
+        resetOut["error"] = err.Error()
+
+        //		fmt.Println("UserOut:", resetOut)
+    }
+
+    if err := encoder.Encode(resetOut); err != nil {
+        http.Error(w, fmt.Sprintf("Cannot encode response data: %v", err), http.StatusInternalServerError)
+    }
+}
+
+// healthHandler serves the /health endpoint
+func (u *Uchiwa) helpHandler(w http.ResponseWriter, r *http.Request) {
+    encoder := json.NewEncoder(w)
+    var err error
+    out := &structs.Health{}
+    out.Sensu = make(map[string]structs.SensuHealth, 0)
+    if r.URL.Path[1:] == "health/sensu" {
+
+        for key, val := range u.Data.Health.Sensu {
+
+            if key == "Lamaani" {
+                out.Sensu[key] = val
+            }
+        }
+        err = encoder.Encode(out.Sensu)
+        //        err = encoder.Encode("{}")
+    } else if r.URL.Path[1:] == "health/uchiwa" {
+        err = encoder.Encode(u.Data.Health.Uchiwa)
+        //        err = encoder.Encode("{}")
+    } else {
+        out.Uchiwa = u.Data.Health.Uchiwa
+
+        for key, val := range u.Data.Health.Sensu {
+            if key == "Lamaani" {
+                out.Sensu[key] = val
+            }
+        }
+        //        err = encoder.Encode(u.Data.Health)
+        err = encoder.Encode(out)
+    }
+
+    if err != nil {
+        http.Error(w, fmt.Sprintf("Cannot encode response data: %v", err), http.StatusInternalServerError)
+        return
+    }
+}
+
+
+
 // WebServer starts the web server and serves GET & POST requests
 func (u *Uchiwa) WebServer(publicPath *string, auth authentication.Config) {
     // Private endpoints
@@ -1175,6 +1681,15 @@ func (u *Uchiwa) WebServer(publicPath *string, auth authentication.Config) {
     http.Handle("/stashes", auth.Authenticate(Authorization.Handler(http.HandlerFunc(u.stashesHandler))))
     http.Handle("/stashes/", auth.Authenticate(Authorization.Handler(http.HandlerFunc(u.stashHandler))))
     http.Handle("/subscriptions", auth.Authenticate(Authorization.Handler(http.HandlerFunc(u.subscriptionsHandler))))
+    http.Handle("/get_tenant", auth.Authenticate(http.HandlerFunc(u.getTenantHandler)))
+    http.Handle("/get_user", auth.Authenticate(http.HandlerFunc(u.getUserHandler)))
+    http.Handle("/get_users", auth.Authenticate(http.HandlerFunc(u.getUsersHandler)))
+//    http.Handle("/get_zip", auth.Authenticate(http.HandlerFunc(getCustomerZipHandler)))
+    http.Handle("/post_user", auth.Authenticate(http.HandlerFunc(u.postUserHandler)))
+    http.Handle("/post_passwd", auth.Authenticate(http.HandlerFunc(u.postPasswdHandler)))
+    http.Handle("/post_forgotpasswd", http.HandlerFunc(u.postForgotPasswdHandler))
+    http.Handle("/post_adduser", auth.Authenticate(http.HandlerFunc(u.postAddUserHandler)))
+    http.Handle("/health", auth.Authenticate(http.HandlerFunc(u.healthHandler)))
     if u.Config.Uchiwa.Enterprise == false {
         http.Handle("/metrics", auth.Authenticate(Authorization.Handler(http.HandlerFunc(u.metricsHandler))))
     }
@@ -1184,8 +1699,8 @@ func (u *Uchiwa) WebServer(publicPath *string, auth authentication.Config) {
 
     // Public endpoints
     http.Handle("/config/", http.HandlerFunc(u.configHandler))
-    http.Handle("/health", http.HandlerFunc(u.healthHandler))
     http.Handle("/health/", http.HandlerFunc(u.healthHandler))
+    http.Handle("/help", http.HandlerFunc(u.helpHandler))
     http.Handle("/login", auth.Login())
 
     listen := fmt.Sprintf("%s:%d", u.Config.Uchiwa.Host, u.Config.Uchiwa.Port)

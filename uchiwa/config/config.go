@@ -271,6 +271,13 @@ func (c *Config) GetPublic() *Config {
 	p.Uchiwa.Gitlab.Secret = "*****"
 	p.Uchiwa.Ldap.BindPass = "*****"
 
+
+	p.Uchiwa.Sql.Db = "****"
+	p.Uchiwa.Sql.Host = "****"
+	p.Uchiwa.Sql.User = "****"
+	p.Uchiwa.Sql.Pass = "****"
+	p.Uchiwa.Sql.Port = 0000
+
 	for i := range p.Uchiwa.Github.Roles {
 		p.Uchiwa.Github.Roles[i].AccessToken = "*****"
 	}

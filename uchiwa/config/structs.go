@@ -45,7 +45,9 @@ type GlobalConfig struct {
 	Github     Github
 	Gitlab     Gitlab
 	Ldap       Ldap
-	reCAPTCHA  reCAPTCHA
+	ReCaptcha  ReCaptcha
+    SMS        SMS
+    Sql        Sql
 	SSL        SSL
 }
 
@@ -77,7 +79,7 @@ type FreeIPA struct {
 	Server       string
 	Port         int
 	Domain       string
-	BaseDN       string
+	BaseDn       string
 	User         string
 	Pass         string
 	Roles        []authentication.Role
@@ -121,7 +123,7 @@ type Ldap struct {
 }
 
 // reCAPTCHA struct contains the reCAPTCHA url and key
-type reCAPTCHA struct {
+type ReCaptcha struct {
 	Url        string
 	SecretKey  string
 }
@@ -129,12 +131,21 @@ type reCAPTCHA struct {
 // SMS struct contains the SMS configuration for sending notifications
 type SMS struct {
     Url              string
-    User             int
+    User             string
     Pass             string
     NewUserText      string
     ResetPasswdText  string
     TemplatePath     string
     TemplateFile     string
+}
+
+// SQL struct contains the SQL server information
+type Sql struct {
+	Host		string
+	Port		int
+	User		string
+	Pass		string
+	Db			string
 }
 
 // SSL struct contains the path the SSL certificate and key
